@@ -38,6 +38,19 @@ jobs:
           xcodebuild -version
           flutter doctor -v
 
+      - name: Generate iOS project if missing
+        shell: bash
+        run: |
+          if [ ! -d "ios" ]; then
+            flutter create --platforms=ios --org "${{ github.event.inputs.org }}" .
+          fi
+
+      - name: Configure iOS bundle id and app name
+        shell: bash
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ github.event.inputs.app_name }}" ios/Runner/Info.plist || true
+          perl -0777 -i -pe "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/PRODUCT_BUNDLE_IDENTIFIER = ${{ github.event.inputs.bundle_id }};/g" ios/Runner.xcodeproj/project.pbxproj
+
       - name: Build unsigned IPA
         shell: bash
         run: |
