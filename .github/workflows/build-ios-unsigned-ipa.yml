@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       org:
-        description: "Reverse-domain org prefix, for example com.yourname"
+        description: "Reverse-domain org prefix"
         required: true
-        default: "com.yourname"
+        default: "com.amrmoamed11433"
       bundle_id:
-        description: "Unique iOS Bundle ID, for example com.yourname.wepackagesmanager"
+        description: "Unique iOS Bundle ID"
         required: true
-        default: "com.yourname.wepackagesmanager"
+        default: "com.amrmoamed11433.wepackagesmanager"
       app_name:
         description: "Visible app name on iPhone"
         required: true
@@ -45,6 +45,13 @@ jobs:
             flutter create --platforms=ios --org "${{ github.event.inputs.org }}" .
           fi
 
+      - name: Enable Flutter generated localizations
+        shell: bash
+        run: |
+          if ! grep -q "generate: true" pubspec.yaml; then
+            perl -0777 -i -pe 's/flutter:\n/flutter:\n  generate: true\n/' pubspec.yaml
+          fi
+
       - name: Configure iOS bundle id and app name
         shell: bash
         run: |
@@ -55,6 +62,7 @@ jobs:
         shell: bash
         run: |
           flutter pub get
+          flutter gen-l10n
           flutter build ios --release --no-codesign --config-only
 
           cd ios
