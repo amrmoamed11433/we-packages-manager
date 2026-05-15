@@ -51,24 +51,39 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ github.event.inputs.app_name }}" ios/Runner/Info.plist || true
           perl -0777 -i -pe "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/PRODUCT_BUNDLE_IDENTIFIER = ${{ github.event.inputs.bundle_id }};/g" ios/Runner.xcodeproj/project.pbxproj
 
-      - name: Build unsigned IPA
+      - name: Build unsigned iOS app
         shell: bash
         run: |
           flutter pub get
+          flutter build ios --release --no-codesign --config-only
 
-          set +e
-          flutter build ios --release --no-codesign
-          BUILD_EXIT_CODE=$?
-          set -e
+          cd ios
+          pod install
+          cd ..
 
-          if [ ! -d "build/ios/iphoneos/Runner.app" ]; then
-            echo "Runner.app was not created. Build failed."
-            exit $BUILD_EXIT_CODE
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/ios_xcode \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Create unsigned IPA
+        shell: bash
+        run: |
+          mkdir -p Payload
+          APP_PATH=$(find build/ios_xcode -name "Runner.app" -type d | head -n 1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "Runner.app not found"
+            exit 1
           fi
 
-          mkdir -p Payload
-          cp -R build/ios/iphoneos/Runner.app Payload/
-
+          cp -R "$APP_PATH" Payload/
           zip -r WE_Packages_Manager_unsigned.ipa Payload
 
       - name: Upload unsigned IPA artifact
